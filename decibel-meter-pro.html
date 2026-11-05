@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#191a22">
+<title>Decibel Meter</title>
+<style>
+:root{color-scheme:dark;--bg:#1c1d26;--panel:#111216;--panel2:#24252e;--line:#30313b;--muted:#7f91b0;--blue:#80aaf4;--orange:#f0783d;--yellow:#ffc64d;--pink:#e56ab7;--lime:#c9ed7b;--white:#f5f6fa}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--white);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+button,input,select{font:inherit}button{color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.app{width:min(100%,620px);margin:auto;min-height:100svh;padding:calc(12px + env(safe-area-inset-top)) 10px calc(96px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;justify-content:space-between;padding:5px 5px 12px}.brand{font-weight:750;letter-spacing:.01em;font-size:18px}.topright{display:flex;align-items:center;gap:8px}.pill{border:1px solid #3a3b46;background:#252630;color:#cbd0dd;border-radius:99px;padding:7px 11px;font-size:12px}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#6e7180;margin-right:6px}.dot.live{background:#9cf35b;box-shadow:0 0 10px #9cf35b}
+.panel{background:#111216;border:1px solid #2c2d36;border-radius:17px;overflow:hidden;box-shadow:0 7px 20px #0002;margin-bottom:10px}
+.spectrum-wrap{position:relative;padding:8px 8px 0}.spectrum{display:block;width:100%;height:clamp(270px,83vw,470px);background:#030405;border-radius:12px}.spectrum-label{position:absolute;top:16px;left:18px;font-size:11px;color:#7083a5;pointer-events:none}.spectrum-top{position:absolute;top:15px;left:18px;right:18px;display:flex;justify-content:space-between;pointer-events:none}.tiny-dots{display:flex;gap:13px}.tiny-dots i{width:9px;height:9px;border-radius:50%;background:#26272d}.spec-controls{display:flex;align-items:center;justify-content:space-between;padding:9px 12px 10px}.round{border:1px solid #30313a;background:#08090b;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:21px}.round:active,.navbtn:active{transform:scale(.94)}.round svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.action{border:0;border-radius:999px;background:var(--orange);color:white;padding:12px 25px;font-weight:700;box-shadow:0 5px 18px #f0783d30}
+.gauge{height:210px;position:relative;padding:0 5px}.gauge canvas{width:100%;height:100%;display:block}.gauge-readout{position:absolute;right:13px;bottom:12px;color:#7083a5;font-size:11px}
+.measure{position:relative;min-height:172px;padding:18px 15px 16px;display:grid;grid-template-columns:1fr 1.3fr 1fr;align-items:end;text-align:center}
+.stat .tag{display:inline-block;border:1px solid #343640;border-radius:99px;padding:5px 13px;color:#7892bc;font-size:12px;margin-bottom:9px}.stat .num{font-size:clamp(25px,7vw,39px);color:var(--blue);font-weight:350;font-variant-numeric:tabular-nums;letter-spacing:-.04em}
+.mainreading{align-self:end;padding-bottom:2px}.mainreading .num{font-size:clamp(55px,15vw,82px);line-height:1;color:var(--orange);font-weight:350;letter-spacing:-.06em;font-variant-numeric:tabular-nums}.mainreading small{font-size:12px;color:#8998b2}
+.measure-actions{position:absolute;top:-31px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:18px;pointer-events:none}.measure-actions button{pointer-events:auto}.bigpause{width:94px;height:94px;border:3px solid var(--yellow);border-radius:50%;background:#17181d;color:var(--yellow);font-size:31px;box-shadow:0 0 0 7px #111216}
+.bottomnav{position:fixed;z-index:5;bottom:calc(10px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(calc(100% - 34px),570px);display:grid;grid-template-columns:repeat(5,1fr);padding:7px;background:#34353d;border:1px solid #585963;border-radius:50px;box-shadow:0 8px 30px #0007}
+.navbtn{border:0;background:transparent;border-radius:40px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#a4a5ad;font-size:11px;transition:background .22s,color .22s,transform .18s}.navbtn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.navbtn.active{background:#1b1c24;color:var(--orange)}.navbtn.active svg{filter:drop-shadow(0 0 5px #f0783d55)}
+.view{display:none}.view.active{display:block;animation:fadein .24s ease both}@keyframes fadein{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.section-title{font-size:16px;font-weight:700;margin:7px 3px 11px}.sub{color:#8792a7;font-size:12px;line-height:1.5}.meter-note{padding:10px 13px;color:#aab3c5;font-size:11px;line-height:1.45}
+.data-card,.settings-card{padding:17px}.data-row,.setting-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #2d2e38}.data-row:last-child,.setting-row:last-child{border-bottom:0}.data-row strong{font-size:20px;font-weight:500;font-variant-numeric:tabular-nums}.data-row span,.setting-row label{color:#aeb6c6;font-size:13px}.setting-row input,.setting-row select{width:135px;max-width:48%;background:#242630;border:1px solid #454752;color:white;border-radius:10px;padding:9px}
+.primarybtn{border:0;background:var(--orange);border-radius:12px;padding:12px 16px;font-weight:700}.secondarybtn{border:1px solid #464752;background:#242630;border-radius:12px;padding:11px 14px}.buttonrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.notice{display:none;margin:10px 2px;padding:12px 14px;border-radius:12px;background:#3a2c20;color:#ffd7aa;font-size:13px;line-height:1.45}.notice.show{display:block}.notice.ok{background:#17382e;color:#b8f3d9}
+#history{width:100%;height:210px;display:block}.tabheader{display:flex;gap:7px;margin:8px 0 12px}.tabchip{border:1px solid #3c3d47;background:#22232c;border-radius:99px;padding:8px 12px;font-size:12px;color:#aab3c5}.tabchip.active{background:#473026;border-color:#a9542d;color:#ffad7d}
+.dosebig{text-align:center;padding:20px}.dosebig strong{font-size:60px;font-weight:350;color:var(--orange)}.dosebar{height:10px;background:#292a33;border-radius:99px;overflow:hidden;margin:12px 0}.dosebar span{display:block;height:100%;width:0;background:linear-gradient(90deg,#8fdc86,#ffc64d,#f0783d);transition:width .5s}
+@media(min-width:540px){.app{padding-top:22px}.spectrum{height:390px}.gauge{height:235px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="top"><div class="brand">◉  DECIBEL METER</div><div class="topright"><span class="pill"><i class="dot" id="liveDot"></i><span id="stateText">Ready</span></span></div></div>
+
+ <section id="meterView" class="view active">
+  <div class="panel">
+   <div class="spectrum-wrap"><canvas id="spectrum" class="spectrum" aria-label="Live frequency spectrum"></canvas><div class="spectrum-top"><span class="spectrum-label">Hz</span><span class="tiny-dots"><i></i><i></i><i></i><i></i><i></i></span></div></div>
+   <div class="spec-controls">
+    <button class="round" id="helpBtn" aria-label="Help">ⓘ</button>
+    <button class="action" id="micBtn">Start measuring</button>
+    <button class="round" id="fullBtn" aria-label="Fullscreen">⛶</button>
+   </div>
+  </div>
+  <div class="panel gauge"><canvas id="gauge" aria-label="Analog decibel gauge"></canvas><span class="gauge-readout" id="weightReadout">dBFS · relative</span></div>
+  <div class="panel measure">
+   <div class="measure-actions">
+    <button class="round" id="resetBtn" aria-label="Reset readings">↺</button>
+    <button class="bigpause" id="pauseBtn" aria-label="Pause or resume">Ⅱ</button>
+    <button class="round" id="exportBtn" aria-label="Export readings">⇩</button>
+   </div>
+   <div class="stat"><span class="tag">AVG</span><div class="num" id="avg">—</div></div>
+   <div class="mainreading"><div class="num" id="reading">—</div><small id="unit">dBFS</small></div>
+   <div class="stat"><span class="tag">MAX</span><div class="num" id="max">—</div></div>
+  </div>
+  <div class="meter-note">Readings are relative dBFS until calibrated with a trusted sound-level meter. Phone microphones and automatic processing vary by device.</div>
+  <div id="notice" class="notice" role="status"></div>
+ </section>
+
+ <section id="cameraView" class="view">
+  <div class="section-title">Sound environment</div>
+  <div class="panel data-card"><div style="font-size:56px;text-align:center;padding:28px 0">◉</div><h2 style="text-align:center">Sound snapshot</h2><p class="sub" style="text-align:center">Use the meter to capture a timestamped sound-level snapshot. This web version does not infer sound direction or overlay measurements on a camera image.</p><div class="buttonrow" style="justify-content:center"><button class="primarybtn" id="snapshotBtn">Save current reading</button></div></div>
+  <div class="panel data-card"><div class="data-row"><span>Current level</span><strong id="cameraReading">—</strong></div><div class="data-row"><span>Last snapshot</span><strong id="snapshotTime">—</strong></div></div>
+ </section>
+
+ <section id="doseView" class="view">
+  <div class="section-title">Noise dosimeter</div>
+  <div class="panel dosebig"><div class="sub">Estimated daily noise dose</div><strong id="dose">0%</strong><div class="dosebar"><span id="doseBar"></span></div><div class="sub" id="doseCaption">Dose estimate starts when the microphone is measuring.</div></div>
+  <div class="panel data-card"><div class="data-row"><span>Exposure basis</span><strong>85 dBA / 8 h</strong></div><div class="data-row"><span>Exchange rate</span><strong>3 dB</strong></div><p class="sub">This is an educational estimate, not an occupational compliance instrument. The estimate is meaningful only after proper dB SPL calibration and A-weighting, neither of which is certified by this browser app.</p></div>
+ </section>
+
+ <section id="dataView" class="view">
+  <div class="section-title">Measurement data</div>
+  <div class="panel data-card"><div class="data-row"><span>Current</span><strong id="dataCurrent">—</strong></div><div class="data-row"><span>Average</span><strong id="dataAvg">—</strong></div><div class="data-row"><span>Maximum</span><strong id="dataMax">—</strong></div><div class="data-row"><span>Minimum</span><strong id="dataMin">—</strong></div><div class="data-row"><span>Samples</span><strong id="dataCount">0</strong></div></div>
+  <div class="panel data-card"><h3 style="margin:0 0 10px">Recent history</h3><canvas id="history" width="700" height="210"></canvas><div class="buttonrow"><button class="primarybtn" id="dataExport">Export CSV</button><button class="secondarybtn" id="dataReset">Clear data</button></div></div>
+ </section>
+
+ <section id="settingsView" class="view">
+  <div class="section-title">Settings</div>
+  <div class="panel settings-card">
+   <div class="setting-row"><label for="calOffset">Calibration offset (dB)</label><input id="calOffset" type="number" step=".1" value="0"></div>
+   <div class="setting-row"><label for="smooth">Display smoothing</label><select id="smooth"><option value=".08">Smooth</option><option value=".22" selected>Balanced</option><option value=".48">Fast response</option></select></div>
+   <div class="setting-row"><label for="range">Gauge range</label><select id="range"><option value="90">0–90</option><option value="120" selected>0–120</option><option value="140">0–140</option></select></div>
+   <div class="setting-row"><label for="weight">Display scale</label><select id="weight"><option value="relative" selected>Relative dBFS</option><option value="calibrated">Calibrated dB estimate</option></select></div>
+   <div class="buttonrow"><button class="primarybtn" id="applyCal">Apply settings</button><button class="secondarybtn" id="clearCal">Clear calibration</button></div>
+  </div>
+  <div class="panel data-card"><h3 style="margin:0 0 8px">About accuracy</h3><p class="sub">A phone can provide a useful relative sound-level indication, but accurate dB SPL requires device-specific calibration and appropriate frequency weighting. This app does not claim laboratory accuracy.</p></div>
+ </section>
+</div>
+
+<nav class="bottomnav" aria-label="Main navigation">
+ <button class="navbtn" data-view="cameraView"><svg viewBox="0 0 24 24"><path d="M4 7h4l2-2h4l2 2h4v12H4z"/><circle cx="12" cy="13" r="4"/></svg><span>Camera</span></button>
+ <button class="navbtn" data-view="doseView"><svg viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 5v8l5 3"/></svg><span>Dosimeter</span></button>
+ <button class="navbtn active" data-view="meterView"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 9h8M8 13h8M8 17h4"/></svg><span>Meter</span></button>
+ <button class="navbtn" data-view="dataView"><svg viewBox="0 0 24 24"><path d="M5 5h14M5 12h14M5 19h14"/><circle cx="8" cy="5" r="1"/><circle cx="8" cy="12" r="1"/><circle cx="8" cy="19" r="1"/></svg><span>Data</span></button>
+ <button class="navbtn" data-view="settingsView"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></svg><span>Settings</span></button>
+</nav>
+<script>
+"use strict";
+(()=>{
+const $=id=>document.getElementById(id);
+const el={spectrum:$("spectrum"),gauge:$("gauge"),history:$("history"),reading:$("reading"),avg:$("avg"),max:$("max"),notice:$("notice"),mic:$("micBtn"),pause:$("pauseBtn"),state:$("stateText"),dot:$("liveDot")};
+let audio=null,stream=null,source=null,analyser=null,raf=0,active=false,paused=false;
+let smoothDb=-90,rawDb=-90,offset=0,calibrated=false,range=120,smoothing=.22;
+let records=[],history=[],lastRecord=0,lastDoseTime=0,dose=0,snapshot=null;
+const fmt=n=>Number.isFinite(n)?n.toFixed(1):"—";
+function msg(t,ok=false){el.notice.textContent=t;el.notice.className="notice show"+(ok?" ok":"")}
+function setState(t,on=false){el.state.textContent=t;el.dot.classList.toggle("live",on)}
+function fitCanvas(c){const r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2),w=Math.max(1,Math.round(r.width*d)),h=Math.max(1,Math.round(r.height*d));if(c.width!==w||c.height!==h){c.width=w;c.height=h}return [c.getContext("2d"),w,h]}
+function rmsDb(a){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*a[i];return Math.max(-90,20*Math.log10(Math.max(1e-8,Math.sqrt(s/a.length))))}
+function shown(){return calibrated?Math.max(0,smoothDb+offset):smoothDb}
+function updateStats(){const vals=records.map(x=>x.value);$("avg").textContent=fmt(vals.reduce((a,b)=>a+b,0)/(vals.length||1));$("max").textContent=fmt(vals.length?Math.max(...vals):NaN);$("dataCurrent").textContent=fmt(shown());$("dataAvg").textContent=$("avg").textContent;$("dataMax").textContent=$("max").textContent;$("dataMin").textContent=fmt(vals.length?Math.min(...vals):NaN);$("dataCount").textContent=records.length;$("cameraReading").textContent=fmt(shown())+(calibrated?" dB":" dBFS")}
+function drawSpectrum(freq){
+ const [g,w,h]=fitCanvas(el.spectrum);g.fillStyle="#030405";g.fillRect(0,0,w,h);
+ const left=36*(w/700),right=8*(w/700),top=12*(h/390),bottom=25*(h/390),plotW=w-left-right,plotH=h-top-bottom;
+ g.strokeStyle="#1c2a3d";g.lineWidth=1;g.font=`${11*(w/390)}px system-ui`;g.fillStyle="#5e7397";
+ for(let i=0;i<=6;i++){let x=left+i*plotW/6;g.beginPath();g.moveTo(x,top);g.lineTo(x,h-bottom);g.stroke();g.fillText(["0","500","1K","2K","4K","8K","16K"][i],x-9,h-7)}
+ for(let i=0;i<=6;i++){let y=top+i*plotH/6;g.beginPath();g.moveTo(left,y);g.lineTo(w-right,y);g.stroke();g.fillText(String(120-i*20),3,y+4)}
+ const colors=["#d76bb4","#c6e97b"];
+ for(let curve=0;curve<2;curve++){g.beginPath();for(let x=0;x<Math.floor(plotW);x++){let idx=Math.min(freq.length-1,Math.floor(Math.pow(x/plotW,1.7)*(freq.length-1)));let db=freq[idx];let val=curve===0?db:Math.max(-90,db-8-10*Math.sin(x*.03));let y=top+(1-M.max(0,Math.min(1,(val+90)/90)))*plotH;if(x===0)g.moveTo(left+x,y);else g.lineTo(left+x,y)}g.strokeStyle=colors[curve];g.lineWidth=1.25*(w/390);g.stroke()}
+}
+function drawGauge(){
+ const [g,w,h]=fitCanvas(el.gauge);g.clearRect(0,0,w,h);
+ const cx=w/2,cy=h*.91,r=Math.min(w*.36,h*.88),start=Math.PI*1.25,end=Math.PI*1.75;
+ const tickCount=24;
+ g.lineCap="round";
+ for(let i=0;i<=tickCount;i++){const t=i/tickCount,a=start+(end-start)*t,major=i%2===0;const r1=r-(major?23:15),r2=r;g.beginPath();g.moveTo(cx+Math.cos(a)*r1,cy+Math.sin(a)*r1);g.lineTo(cx+Math.cos(a)*r2,cy+Math.sin(a)*r2);g.strokeStyle=t>.68?"#ed7a42":"#83aaf0";g.lineWidth=major?3.2:2;g.stroke();if(major){const tx=cx+Math.cos(a)*(r+13),ty=cy+Math.sin(a)*(r+13);g.fillStyle=t>.68?"#bd6a42":"#7d9ed5";g.font=`${Math.max(10,w*.025)}px system-ui`;g.textAlign="center";g.textBaseline="middle";g.fillText(String(Math.round(range*t)),tx,ty)}}
+ const t=Math.max(0,Math.min(1,shown()/range)),a=start+(end-start)*t;
+ g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+Math.cos(a)*(r-27),cy+Math.sin(a)*(r-27));g.strokeStyle="#d63827";g.lineWidth=7;g.stroke();
+ g.beginPath();g.arc(cx,cy,7,0,Math.PI*2);g.fillStyle="#f6c34c";g.fill();
+}
+function drawHistory(){const [g,w,h]=fitCanvas(el.history);g.fillStyle="#111216";g.fillRect(0,0,w,h);g.strokeStyle="#303746";for(let i=0;i<5;i++){let y=12+i*(h-24)/4;g.beginPath();g.moveTo(30,y);g.lineTo(w-8,y);g.stroke()}if(history.length<2)return;g.beginPath();history.forEach((v,i)=>{let x=30+i*(w-40)/(history.length-1),y=h-12-(Math.max(0,Math.min(range,v))/range)*(h-24);if(!i)g.moveTo(x,y);else g.lineTo(x,y)});g.strokeStyle="#e97843";g.lineWidth=2.5;g.stroke()}
+function render(){if(!active||paused||!analyser)return;const td=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(td);rawDb=rmsDb(td);smoothDb+=(rawDb-smoothDb)*smoothing;
+ const val=shown();el.reading.textContent=fmt(val);$("unit").textContent=calibrated?"dB estimate":"dBFS";$("weightReadout").textContent=calibrated?"Calibrated estimate":"dBFS · relative";
+ const freq=new Float32Array(analyser.frequencyBinCount);analyser.getFloatFrequencyData(freq);drawSpectrum(freq);
+ const now=performance.now();if(now-lastRecord>250){lastRecord=now;records.push({time:new Date().toISOString(),value:val,raw:rawDb});if(records.length>20000)records.shift();history.push(val);if(history.length>140)history.shift();updateStats();drawHistory()}
+ if(now-lastDoseTime>1000){lastDoseTime=now;let elapsed=1/3600;let db=calibrated?val:NaN;if(Number.isFinite(db)&&db>=85){let allowedHours=8*Math.pow(2,(85-db)/3);dose+=elapsed/allowedHours*100;$("dose").textContent=fmt(dose)+"%";$("doseBar").style.width=Math.min(100,dose)+"%";$("doseCaption").textContent="Illustrative dose estimate accumulated while measuring."}}
+ drawGauge();raf=requestAnimationFrame(render)}
+async function start(){
+ el.notice.className="notice";if(!isSecureContext){msg("Microphone access requires a secure HTTPS page. Open the GitHub Pages URL directly.");return}
+ if(!navigator.mediaDevices?.getUserMedia){msg("This browser does not expose microphone access. Try the current Safari or Chrome browser.");return}
+ stop();try{audio=new(window.AudioContext||window.webkitAudioContext)();await audio.resume();stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});source=audio.createMediaStreamSource(stream);analyser=audio.createAnalyser();analyser.fftSize=4096;analyser.smoothingTimeConstant=0;source.connect(analyser);active=true;paused=false;el.mic.textContent="Microphone on";el.mic.disabled=true;el.pause.textContent="Ⅱ";setState("Measuring",true);msg("Microphone connected. Allow a few seconds for the live spectrum to settle.",true);render()}catch(e){stop();let n=e?.name||"Error";msg(n==="NotAllowedError"?"Microphone permission was denied. Enable it for this website in your browser settings.":n==="NotFoundError"?"No microphone was found on this device.":`Microphone could not start (${n}). Check site permission and try again.`)}}
+function stop(){cancelAnimationFrame(raf);raf=0;active=false;paused=false;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}if(source){try{source.disconnect()}catch{}source=null}if(audio){audio.close().catch(()=>{});audio=null}analyser=null;el.mic.disabled=false;el.mic.textContent="Start measuring";el.pause.textContent="Ⅱ";setState("Ready",false)}
+function pause(){if(!active)return;paused=!paused;if(paused){cancelAnimationFrame(raf);el.pause.textContent="▶";setState("Paused")}else{el.pause.textContent="Ⅱ";setState("Measuring",true);render()}}
+function reset(){records=[];history=[];dose=0;$("dose").textContent="0%";$("doseBar").style.width="0%";updateStats();drawHistory();el.reading.textContent="—";smoothDb=-90;drawGauge()}
+function exportCsv(){if(!records.length){msg("No readings to export yet.");return}const rows=["timestamp,relative_dbfs,display_value",...records.map(x=>`${x.time},${x.raw.toFixed(2)},${x.value.toFixed(2)}`)];const blob=new Blob([rows.join("\n")],{type:"text/csv"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="decibel-readings.csv";a.click();URL.revokeObjectURL(url);msg("CSV export created.",true)}
+$("micBtn").addEventListener("click",start);$("pauseBtn").addEventListener("click",pause);$("resetBtn").addEventListener("click",reset);$("exportBtn").addEventListener("click",exportCsv);$("dataExport").addEventListener("click",exportCsv);$("dataReset").addEventListener("click",reset);
+$("applyCal").addEventListener("click",()=>{offset=Number($("calOffset").value)||0;calibrated=$("weight").value==="calibrated";smoothing=Number($("smooth").value);range=Number($("range").value);msg(calibrated?"Calibration offset applied. Treat this as an estimate, not a certified SPL reading.":"Display settings applied. Readings remain relative dBFS.",true);drawGauge()});
+$("clearCal").addEventListener("click",()=>{$("calOffset").value="0";$("weight").value="relative";offset=0;calibrated=false;msg("Calibration cleared; showing relative dBFS.",true)});
+$("snapshotBtn").addEventListener("click",()=>{snapshot=new Date();$("snapshotTime").textContent=snapshot.toLocaleTimeString();msg("Snapshot saved for this session.",true)});
+$("helpBtn").addEventListener("click",()=>msg("Tap Start measuring and grant microphone access. The spectrum shows frequency energy; the large value is relative dBFS unless you have applied a calibration offset."));
+$("fullBtn").addEventListener("click",()=>{const p=document.documentElement;if(!document.fullscreenElement&&p.requestFullscreen)p.requestFullscreen().catch(()=>{});else if(document.exitFullscreen)document.exitFullscreen()});
+document.querySelectorAll(".navbtn").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".navbtn").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".view").forEach(x=>x.classList.toggle("active",x.id===b.dataset.view));if(b.dataset.view==="dataView")drawHistory()}));
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&active&&!paused)pause()});window.addEventListener("pagehide",stop);window.addEventListener("resize",()=>{drawGauge();drawHistory()});
+updateStats();drawGauge();drawHistory();
+})();
+</script>
+</body></html>
