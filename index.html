@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>Decibel Meter</title>
+<style>
+:root{color-scheme:dark;--bg:#101827;--panel:#192437;--panel2:#223149;--text:#f4f7fb;--muted:#a9b7ca;--accent:#64d6b0;--warn:#ffc46b;--red:#ff7777;--line:#34465f}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#263b55 0,transparent 55%),var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+main{width:min(760px,100%);margin:auto;padding:calc(22px + env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}h1{font-size:clamp(25px,6vw,34px);margin:0;letter-spacing:-.04em} .status{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:6px 10px;white-space:nowrap}
+.card{background:linear-gradient(160deg,rgba(255,255,255,.045),transparent 45%),var(--panel);border:1px solid var(--line);border-radius:22px;padding:20px;margin:14px 0;box-shadow:0 12px 30px #0002}
+.reading{text-align:center;padding:28px 12px 20px}.eyebrow{color:var(--muted);font-size:13px;font-weight:650;letter-spacing:.12em;text-transform:uppercase}
+.value{font-size:clamp(76px,19vw,128px);line-height:1.02;font-weight:750;letter-spacing:-.075em;font-variant-numeric:tabular-nums;margin:12px 0 2px}.unit{font-size:18px;color:var(--muted);font-weight:600}.level{height:12px;border-radius:20px;background:#0c1421;overflow:hidden;margin:24px auto 8px;max-width:480px}.level span{display:block;height:100%;width:0;background:linear-gradient(90deg,#64d6b0 0 55%,#ffc46b 75%,#ff7777);border-radius:20px;transition:width .12s}
+.controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px}button{font:inherit;font-weight:700;border:1px solid var(--line);border-radius:14px;padding:13px 18px;color:var(--text);background:var(--panel2);cursor:pointer;min-height:48px}button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:3px}button.primary{background:var(--accent);color:#08231d;border-color:var(--accent)}button:disabled{opacity:.5;cursor:not-allowed}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.metric{background:#0f1928;border-radius:15px;padding:14px 8px;text-align:center}.metric b{display:block;font-size:26px;font-variant-numeric:tabular-nums}.metric span{font-size:12px;color:var(--muted)}
+canvas{width:100%;height:180px;display:block}h2{font-size:17px;margin:0 0 12px}.hint,.muted{color:var(--muted);font-size:13px}.hint{margin:12px 0 0}.row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}.row:last-child{border:0}.row label{font-weight:600}.row input{width:110px;max-width:42%;background:#0f1928;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit}
+.message{display:none;padding:13px 14px;border-radius:13px;background:#392b1c;color:#ffe0b0;font-size:14px;margin-top:14px}.message.show{display:block}.good{background:#15372f;color:#b9f5e1}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:8px 10px 20px}
+@media(max-width:420px){.card{padding:16px;border-radius:18px}.metrics{gap:7px}.metric b{font-size:22px}.controls button{flex:1}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Decibel Meter</h1><span class="status" id="status">Not measuring</span></header>
+<section class="card reading" aria-live="polite">
+<div class="eyebrow" id="readingLabel">Sound level</div>
+<div class="value" id="current">—</div>
+<div class="unit" id="unit">dBFS · relative level</div>
+<div class="level" aria-hidden="true"><span id="bar"></span></div>
+<div class="controls">
+<button class="primary" id="start">Start microphone</button>
+<button id="pause" disabled>Pause</button>
+<button id="reset">Reset</button>
+<button id="demo">Try demo</button>
+</div>
+<div class="message" id="message" role="status"></div>
+<p class="hint">Tap “Start microphone” and allow microphone access when your browser asks. The microphone is processed locally; no audio is uploaded.</p>
+</section>
+<section class="card">
+<h2>Session readings</h2>
+<div class="metrics">
+<div class="metric"><b id="average">—</b><span>Average</span></div>
+<div class="metric"><b id="maximum">—</b><span>Maximum</span></div>
+<div class="metric"><b id="minimum">—</b><span>Minimum</span></div>
+</div>
+</section>
+<section class="card">
+<h2>Recent sound level</h2>
+<canvas id="chart" width="700" height="180" role="img" aria-label="Chart of recent sound level readings"></canvas>
+<p class="hint">The chart shows the most recent readings. It is a visual trend, not a certified measurement record.</p>
+</section>
+<section class="card">
+<h2>Calibration</h2>
+<p class="muted">Phone microphones differ. Until you calibrate against a trusted sound-level meter, the reading is relative (dBFS), not a reliable real-world dB SPL measurement.</p>
+<div class="row"><label for="reference">Reference meter reading (dB)</label><input id="reference" type="number" min="20" max="140" step="0.1" placeholder="e.g. 65"></div>
+<div class="row"><label for="offset">Calibration offset (dB)</label><input id="offset" type="number" min="-100" max="200" step="0.1" value="0"></div>
+<div class="controls"><button id="calibrate">Calibrate using current sound</button><button id="clearCal">Clear calibration</button></div>
+<p class="hint" id="calState">Not calibrated · showing dBFS.</p>
+</section>
+<footer>For general awareness only. Not a certified sound-level meter or a substitute for professional measurements.</footer>
+</main>
+<script>
+"use strict";
+(() => {
+const $ = id => document.getElementById(id);
+const ui = {
+ status:$("status"), current:$("current"), unit:$("unit"), label:$("readingLabel"),
+ start:$("start"), pause:$("pause"), reset:$("reset"), demo:$("demo"),
+ average:$("average"), maximum:$("maximum"), minimum:$("minimum"),
+ bar:$("bar"), message:$("message"), chart:$("chart"),
+ reference:$("reference"), offset:$("offset"), calState:$("calState")
+};
+let ctx=null, analyser=null, stream=null, source=null, raf=0, demoOsc=null, demoGain=null;
+let running=false, paused=false, demoMode=false, calibrated=false, latestDbfs=null;
+let samples=[], history=[], lastPaint=0;
+const MAX_HISTORY=90;
+const fmt = n => Number.isFinite(n) ? n.toFixed(1) : "—";
+function showMessage(text, good=false){ui.message.textContent=text;ui.message.className="message show"+(good?" good":"");}
+function clearMessage(){ui.message.className="message";ui.message.textContent="";}
+function levelDb(data){
+ let sum=0;
+ for(let i=0;i<data.length;i++) sum += data[i]*data[i];
+ const rms=Math.sqrt(sum/data.length);
+ return Math.max(-90,20*Math.log10(Math.max(rms,1e-8)));
+}
+function shownDb(dbfs){return calibrated ? dbfs + Number(ui.offset.value||0) : dbfs;}
+function updateReading(dbfs){
+ latestDbfs=dbfs;
+ const value=shownDb(dbfs);
+ ui.current.textContent=fmt(value);
+ ui.unit.textContent=calibrated?"dB SPL · calibrated estimate":"dBFS · relative level";
+ ui.label.textContent=calibrated?"Estimated sound pressure level":"Sound level";
+ ui.bar.style.width=Math.max(0,Math.min(100,(dbfs+90)/90*100))+"%";
+ samples.push(value); if(samples.length>3600)samples.shift();
+ history.push(value);if(history.length>MAX_HISTORY)history.shift();
+ const avg=samples.reduce((a,b)=>a+b,0)/samples.length;
+ ui.average.textContent=fmt(avg);
+ ui.maximum.textContent=fmt(Math.max(...samples));
+ ui.minimum.textContent=fmt(Math.min(...samples));
+}
+function drawChart(){
+ const c=ui.chart, g=c.getContext("2d"),w=c.width,h=c.height;
+ g.clearRect(0,0,w,h);g.strokeStyle="#34465f";g.lineWidth=1;
+ for(let i=0;i<=4;i++){const y=12+i*(h-24)/4;g.beginPath();g.moveTo(36,y);g.lineTo(w-8,y);g.stroke();}
+ g.fillStyle="#a9b7ca";g.font="12px system-ui";g.fillText("0",8,17);g.fillText("-90",2,h-8);
+ if(history.length<2)return;
+ g.strokeStyle="#64d6b0";g.lineWidth=3;g.lineJoin="round";g.beginPath();
+ history.forEach((v,i)=>{const x=36+i*(w-48)/Math.max(1,MAX_HISTORY-1);const dbfs=calibrated?v-Number(ui.offset.value||0):v;const y=12+(1-Math.max(0,Math.min(1,(dbfs+90)/90)))*(h-24);if(i===0)g.moveTo(x,y);else g.lineTo(x,y);});
+ g.stroke();
+}
+function stopTracks(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}if(source){try{source.disconnect()}catch{}source=null;}}
+function stopAll(){
+ cancelAnimationFrame(raf);raf=0;running=false;paused=false;demoMode=false;
+ if(demoOsc){try{demoOsc.stop()}catch{}demoOsc=null;}
+ if(demoGain){try{demoGain.disconnect()}catch{}demoGain=null;}
+ stopTracks();
+ if(ctx){ctx.close().catch(()=>{});ctx=null;}
+ ui.status.textContent="Not measuring";ui.start.disabled=false;ui.start.textContent="Start microphone";ui.pause.disabled=true;ui.pause.textContent="Pause"; 
+}
+function tick(){
+ if(!running||paused||!analyser)return;
+ const data=new Float32Array(analyser.fftSize);
+ analyser.getFloatTimeDomainData(data);
+ updateReading(levelDb(data));
+ const now=performance.now();if(now-lastPaint>100){drawChart();lastPaint=now;}
+ raf=requestAnimationFrame(tick);
+}
+async function startMicrophone(){
+ clearMessage();
+ if(!window.isSecureContext){showMessage("Microphone access requires HTTPS. Open the published GitHub Pages address (https://…github.io/…) directly in Safari or Chrome.");return;}
+ if(!navigator.mediaDevices?.getUserMedia){showMessage("This browser does not provide microphone access. Open the HTTPS page in a current version of Safari or Chrome.");return;}
+ stopAll();
+ try{
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  await ctx.resume();
+  stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
+  source=ctx.createMediaStreamSource(stream);
+  analyser=ctx.createAnalyser();analyser.fftSize=4096;analyser.smoothingTimeConstant=0;
+  source.connect(analyser);
+  running=true;paused=false;demoMode=false;
+  ui.status.textContent="Microphone live";ui.start.disabled=true;ui.start.textContent="Microphone active";ui.pause.disabled=false;
+  showMessage("Microphone connected. Readings are relative until calibrated.",true);
+  tick();
+ }catch(err){
+  stopAll();
+  const name=err?.name||"Error";
+  const advice=name==="NotAllowedError"?"Permission was denied. Allow microphone access for this site in your browser’s site settings, then try again.":name==="NotFoundError"?"No microphone was found on this device.":name==="NotReadableError"?"The microphone is busy or unavailable. Close other apps using it and try again.":`Could not start the microphone (${name}). Check site permissions and try again.`;
+  showMessage(advice);
+ }
+}
+function startDemo(){
+ clearMessage();stopAll();
+ try{
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  analyser=ctx.createAnalyser();analyser.fftSize=4096;analyser.smoothingTimeConstant=0;
+  demoOsc=ctx.createOscillator();demoOsc.type="sine";demoOsc.frequency.value=440;
+  demoGain=ctx.createGain();demoGain.gain.value=.035;
+  demoOsc.connect(demoGain);demoGain.connect(analyser);analyser.connect(ctx.destination);
+  demoOsc.start();running=true;demoMode=true;
+  ui.status.textContent="Demo signal";ui.start.disabled=false;ui.start.textContent="Use microphone";ui.pause.disabled=false;
+  showMessage("Demo signal is running. This is generated test audio, not a room measurement.",true);tick();
+ }catch(e){stopAll();showMessage("The demo signal could not start in this browser.");}
+}
+ui.start.addEventListener("click",()=>{if(demoMode)startMicrophone();else startMicrophone();});
+ui.pause.addEventListener("click",()=>{
+ if(!running)return;paused=!paused;ui.pause.textContent=paused?"Resume":"Pause";
+ if(paused){cancelAnimationFrame(raf);ui.status.textContent="Paused";}
+ else{ui.status.textContent=demoMode?"Demo signal":"Microphone live";tick();}
+});
+ui.reset.addEventListener("click",()=>{samples=[];history=[];ui.average.textContent=ui.maximum.textContent=ui.minimum.textContent="—";ui.current.textContent="—";ui.bar.style.width="0%";drawChart();});
+ui.demo.addEventListener("click",startDemo);
+ui.calibrate.addEventListener("click",()=>{
+ const ref=Number(ui.reference.value);
+ if(!Number.isFinite(latestDbfs)||!Number.isFinite(ref)||ref<20||ref>140){showMessage("Start measuring and enter a reference meter reading between 20 and 140 dB.");return;}
+ const offset=ref-latestDbfs;ui.offset.value=offset.toFixed(1);calibrated=true;
+ ui.calState.textContent=`Calibrated with a reference reading of ${ref.toFixed(1)} dB. This is an estimate for the same device and microphone setup.`;
+ ui.unit.textContent="dB SPL · calibrated estimate";ui.current.textContent=fmt(shownDb(latestDbfs));
+ showMessage("Calibration offset saved for this page session.",true);
+});
+ui.clearCal.addEventListener("click",()=>{calibrated=false;ui.offset.value="0";ui.calState.textContent="Not calibrated · showing dBFS.";if(latestDbfs!==null){ui.current.textContent=fmt(latestDbfs);ui.unit.textContent="dBFS · relative level";}showMessage("Calibration cleared.",true);});
+window.addEventListener("pagehide",stopAll);
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&running&&!paused){paused=true;ui.pause.textContent="Resume";ui.status.textContent="Paused";cancelAnimationFrame(raf);}});
+drawChart();
+})();
+</script>
+</body>
+</html>
